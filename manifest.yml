@@ -1,0 +1,13 @@
+applications:
+- services:
+  - GeoPix-cloudantNoSQLDB
+  - GeoPix-imfpush
+  - GeoPix-AdvancedMobileAccess
+  disk_quota: 1024M
+  host: geopix
+  name: GeoPix
+  command: node app.js
+  path: .
+  domain: mybluemix.net
+  instances: 1
+  memory: 512M
