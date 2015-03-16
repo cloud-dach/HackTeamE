@@ -1,16 +1,73 @@
 var express = require('express');
 var passport = require('passport');
+
 var ImfBackendStrategy = require('passport-imf-token-validation').ImfBackendStrategy;
 var imf = require('imf-oauth-user-sdk');
 
-passport.use(new ImfBackendStrategy());
+try {
+    passport.use(new ImfBackendStrategy());
+} catch ( e ) {
+    console.log(e);
+}
 
 var app = express();
 app.use(passport.initialize());
 
+app.set('view engine', 'jade');
+
+var host = "localhost";
+var port = 3030;
+var cloudant = {
+		 		 url : "" // TODO: Update		 		 
+};
+var database = "geopix"
+
+if (process.env.hasOwnProperty("VCAP_SERVICES")) {
+  // Running on Bluemix. Parse out the port and host that we've been assigned.
+  var env = JSON.parse(process.env.VCAP_SERVICES);
+  var host = process.env.VCAP_APP_HOST; 
+  var port = process.env.VCAP_APP_PORT;
+
+  console.log('VCAP_SERVICES: %s', process.env.VCAP_SERVICES);    
+
+  // Also parse out Cloudant settings.
+  cloudant = env['cloudantNoSQLDB'][0].credentials;  
+}
+
+console.log(cloudant.url);
+
+var nano   = require('nano')(cloudant.url)
+  , db     = nano.use(database);
+
+
 //redirect to mobile backend application doc page when accessing the root context
 app.get('/', function(req, res){
-	res.sendfile('public/index.html');
+    
+    
+    var results = [];
+
+    db.list({include_docs: true}, function(error,body,headers) {
+      //console.log(body);
+        
+        for (var x=0; x<body.rows.length; x++) {
+            //console.log( body.rows[x].doc ); 
+            var obj = body.rows[x].doc;
+            
+            for (var key in obj._attachments) {
+                
+                //console.log(obj._id +"/" + key);
+                obj.image = cloudant.url + "/" + database + "/" + obj._id +"/" + key;    
+                break;
+            }
+            
+            results.push( obj ); 
+        }
+        
+        
+        //console.log(results);
+        res.render('index', { results:results});
+        //res.send( JSON.stringify(results) );
+    });
 });
 
 // create a public static content service
