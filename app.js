@@ -18,7 +18,7 @@ app.set('view engine', 'jade');
 var host = "localhost";
 var port = 3030;
 var cloudant = {
-		 		 url : "" // TODO: Update		 		 
+		 		 url : "https://917a0cf2-d75a-4937-8e63-f8933f6457a1-bluemix:417d47a69f58051c73b69f167c688e850ce71ac33fc2298195275b22fd142305@917a0cf2-d75a-4937-8e63-f8933f6457a1-bluemix.cloudant.com" // TODO: Update		 		 
 };
 var database = "geopix"
 
@@ -46,7 +46,7 @@ app.get('/', function(req, res){
     
     var results = [];
 
-    db.list({include_docs: true}, function(error,body,headers) {
+    db.list({include_docs: true, descending: true}, function(error,body,headers) {
       //console.log(body);
         
         for (var x=0; x<body.rows.length; x++) {
@@ -56,7 +56,7 @@ app.get('/', function(req, res){
             for (var key in obj._attachments) {
                 
                 //console.log(obj._id +"/" + key);
-                obj.image = cloudant.url + "/" + database + "/" + obj._id +"/" + key;    
+                obj.image = "https://917a0cf2-d75a-4937-8e63-f8933f6457a1-bluemix.cloudant.com/" + database + "/" + obj._id +"/" + key;    
                 break;
             }
             
