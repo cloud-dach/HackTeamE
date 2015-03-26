@@ -17,56 +17,59 @@ app.set('view engine', 'jade');
 
 var host = "localhost";
 var port = 3030;
-var cloudant = {
-		 		 url : "https://917a0cf2-d75a-4937-8e63-f8933f6457a1-bluemix:417d47a69f58051c73b69f167c688e850ce71ac33fc2298195275b22fd142305@917a0cf2-d75a-4937-8e63-f8933f6457a1-bluemix.cloudant.com" // TODO: Update		 		 
-};
+var credentials = {};
+
 var database = "geopix"
 
 if (process.env.hasOwnProperty("VCAP_SERVICES")) {
-  // Running on Bluemix. Parse out the port and host that we've been assigned.
-  var env = JSON.parse(process.env.VCAP_SERVICES);
-  var host = process.env.VCAP_APP_HOST; 
-  var port = process.env.VCAP_APP_PORT;
-
-  console.log('VCAP_SERVICES: %s', process.env.VCAP_SERVICES);    
-
-  // Also parse out Cloudant settings.
-  cloudant = env['cloudantNoSQLDB'][0].credentials;  
+    // Running on Bluemix. Parse out the port and host that we've been assigned.
+    var env = JSON.parse(process.env.VCAP_SERVICES);
+    var host = process.env.VCAP_APP_HOST; 
+    var port = process.env.VCAP_APP_PORT;
+   
+    credentials = env['cloudantNoSQLDB'][0].credentials;  
+}
+else {
+    
+    //for local node.js server instance
+    credentials.username = "put your cloudant username here"
+    credentials.password = "put your cloudant password here";
 }
 
-console.log(cloudant.url);
+var Cloudant = require('cloudant')
 
-var nano   = require('nano')(cloudant.url)
-  , db     = nano.use(database);
+var me = '917a0cf2-d75a-4937-8e63-f8933f6457a1-bluemix' 
+var geopix;
+
+Cloudant({account:credentials.username, password:credentials.password}, function(err, cloudant) {
+    console.log('Connected to Cloudant')
+    geopix = cloudant.use(database);
+})
 
 
-//redirect to mobile backend application doc page when accessing the root context
 app.get('/', function(req, res){
     
-    
     var results = [];
+    
+    var selector = {sort:{"$gt":0}};
+    geopix.find({selector:selector, sort:["sort"]}, function(er, result) {
+        if (er) {
+            throw er;
+        }
 
-    db.list({include_docs: true, descending: true}, function(error,body,headers) {
-      //console.log(body);
+        console.log('Found %d documents with type com.geopix.entry', result.docs.length)
         
-        for (var x=0; x<body.rows.length; x++) {
-            //console.log( body.rows[x].doc ); 
-            var obj = body.rows[x].doc;
+        for (var x=0; x<result.docs.length; x++) {
+            var obj = result.docs[x];
             
             for (var key in obj._attachments) {
-                
-                //console.log(obj._id +"/" + key);
                 obj.image = "https://917a0cf2-d75a-4937-8e63-f8933f6457a1-bluemix.cloudant.com/" + database + "/" + obj._id +"/" + key;    
                 break;
             }
             
             results.push( obj ); 
         }
-        
-        
-        //console.log(results);
         res.render('index', { results:results});
-        //res.send( JSON.stringify(results) );
     });
 });
 
