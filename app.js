@@ -32,46 +32,69 @@ if (process.env.hasOwnProperty("VCAP_SERVICES")) {
 else {
     
     //for local node.js server instance
-    credentials.username = "put your cloudant username here"
-    credentials.password = "put your cloudant password here";
+    credentials.username = "username"
+    credentials.password = "password";
+    credentials.url = "cloudant url";
 }
 
-var Cloudant = require('cloudant')
-
-var me = '917a0cf2-d75a-4937-8e63-f8933f6457a1-bluemix' 
+var Cloudant = require('cloudant');
 var geopix;
 
 Cloudant({account:credentials.username, password:credentials.password}, function(err, cloudant) {
-    console.log('Connected to Cloudant')
+    console.log('Connected to Cloudant: ' + credentials.url)
     geopix = cloudant.use(database);
 })
 
-
-app.get('/', function(req, res){
+var prepareData = function(res, template) {
     
     var results = [];
     
-    var selector = {sort:{"$gt":0}};
-    geopix.find({selector:selector, sort:["sort"]}, function(er, result) {
-        if (er) {
-            throw er;
-        }
+    //create the index if it doesn't already exist
+    var sort_index = {name:'sort', type:'json', index:{fields:['sort']}}
+    geopix.index(sort_index, function(er, response) {
+        if (er)
+            throw er
 
-        console.log('Found %d documents with type com.geopix.entry', result.docs.length)
-        
-        for (var x=0; x<result.docs.length; x++) {
-            var obj = result.docs[x];
-            
-            for (var key in obj._attachments) {
-                obj.image = "https://917a0cf2-d75a-4937-8e63-f8933f6457a1-bluemix.cloudant.com/" + database + "/" + obj._id +"/" + key;    
-                break;
+        console.log('Index creation result: %s', response.result)
+    
+        //perform the search
+        var selector = {sort:{"$gt":0}};
+        geopix.find({selector:selector, sort:["sort"]}, function(er, result) {
+            if (er) {
+                throw er;
             }
-            
-            results.push( obj ); 
-        }
-        res.render('index', { results:results});
+
+            console.log('Found %d documents with type com.geopix.entry', result.docs.length)
+
+            for (var x=0; x<result.docs.length; x++) {
+                var obj = result.docs[x];
+
+                for (var key in obj._attachments) {
+                    obj.image = credentials.url + "/" + database + "/" + obj._id +"/" + key;    
+                    break;
+                }
+
+                results.push( obj ); 
+            }
+            res.render(template, { results:results});
+        });
     });
+};
+
+app.get('/', function(req, res){
+    prepareData(res, 'map');
 });
+
+
+app.get('/list', function(req, res){
+    prepareData(res, 'list');
+});
+
+
+
+
+
+
 
 // create a public static content service
 app.use("/public", express.static(__dirname + '/public'));
