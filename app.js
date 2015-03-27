@@ -15,11 +15,8 @@ app.use(passport.initialize());
 
 app.set('view engine', 'jade');
 
-var host = "localhost";
-var port = 3030;
 var credentials = {};
-
-var database = "geopix"
+var database = "geopix";
 
 if (process.env.hasOwnProperty("VCAP_SERVICES")) {
     // Running on Bluemix. Parse out the port and host that we've been assigned.
@@ -32,8 +29,8 @@ if (process.env.hasOwnProperty("VCAP_SERVICES")) {
 else {
     
     //for local node.js server instance
-    credentials.username = "username"
-    credentials.password = "password";
+    credentials.username = "cloudant username";
+    credentials.password = "cloudant password";
     credentials.url = "cloudant url";
 }
 
@@ -41,7 +38,7 @@ var Cloudant = require('cloudant');
 var geopix;
 
 Cloudant({account:credentials.username, password:credentials.password}, function(err, cloudant) {
-    console.log('Connected to Cloudant: ' + credentials.url)
+    console.log('Connected to Cloudant');
     geopix = cloudant.use(database);
 })
 
@@ -50,12 +47,13 @@ var prepareData = function(res, template) {
     var results = [];
     
     //create the index if it doesn't already exist
-    var sort_index = {name:'sort', type:'json', index:{fields:['sort']}}
+    var sort_index = {name:'sort', type:'json', index:{fields:['sort']}};
     geopix.index(sort_index, function(er, response) {
-        if (er)
-            throw er
+        if (er) {
+            throw er;
+        }
 
-        console.log('Index creation result: %s', response.result)
+        console.log('Index creation result: %s', response.result);
     
         //perform the search
         var selector = {sort:{"$gt":0}};
