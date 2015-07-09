@@ -59,16 +59,16 @@ var alchemy = new AlchemyAPI('7534dcdfb599a42690823504ae475f30c25c67d1');
 
 var pics = include("/db/pics.js");
 var blogDB = new pics.Blog(credentials.url, credentials.port);
-var res = blogDB.findAll(function(err, result) {
-  console.log(result);
-});
+//var res = blogDB.findAll(function(err, result) {
+//  console.log(result);
+//});
 
 var prepareData = function(res, template) {
     
 	var results = [];
 	
 	blogDB.findAll(function(err, result) {
-		  console.log(result);
+//		  console.log(result);
 		  
           console.log('Found %d documents with type com.geopix.entry', result.length);
 
@@ -81,6 +81,11 @@ var prepareData = function(res, template) {
                   break;
               }
 
+              if (obj.image == undefined)
+            	  continue;
+              
+              console.log(obj.image);
+              
               results.push( obj ); 
           }
           res.render(template, { results:results});
@@ -98,8 +103,10 @@ app.get('/list', function(req, res){
 });
 
 app.get('/analyze', function(req, res){
-    console.log(req.query.pic);
+    
     var data = req.query.pic;
+    console.log(req.query.pic);
+        
     alchemy.imageKeywords(data, {}, function(err, response) {
     	
     	  if (err) 
@@ -109,7 +116,11 @@ app.get('/analyze', function(req, res){
     	  var imageKeywords = response.imageKeywords;
     	  console.log(imageKeywords);
     	  
-    	  res.send(imageKeywords);
+    	  // res.send(imageKeywords);
+    	  
+    	  var info = JSON.stringify(imageKeywords);
+    	  
+    	  res.render('frame', { url:data, info:info});
     });
 });
 
