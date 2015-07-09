@@ -1,11 +1,9 @@
 applications:
 - services:
-  - GeoPix-cloudantNoSQLDB
-  - GeoPix-imfpush
-  - GeoPix-AdvancedMobileAccess
+  - HackTeamE-cloudantNoSQLDB
   disk_quota: 1024M
-  host: geopix
-  name: GeoPix
+  host: HackTeamE
+  name: HackTeamE
   command: node app.js
   path: .
   domain: mybluemix.net

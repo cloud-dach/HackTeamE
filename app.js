@@ -1,22 +1,32 @@
-var express = require('express');
-var passport = require('passport');
+//helper for including js files
+global.base_dir = __dirname;
+global.abs_path = function(path) {
+    return base_dir + path;
+};
+global.include = function(file) {
+    return require(abs_path('/' + file));
+};
 
-var ImfBackendStrategy = require('passport-imf-token-validation').ImfBackendStrategy;
-var imf = require('imf-oauth-user-sdk');
-
-try {
-    passport.use(new ImfBackendStrategy());
-} catch ( e ) {
-    console.log(e);
+//get the core cfenv application environment
+var cfenv = null;
+try { 
+  cfenv = require('cfenv');
+}
+catch(err) {
+}
+var port = 3000;
+var host = "http://localhost"+ ":" + port;
+if (cfenv) {
+  var appEnv = cfenv.getAppEnv();
+  port = appEnv.port;
+  host = appEnv.url;
 }
 
+var express = require('express');
 var app = express();
-app.use(passport.initialize());
-
 app.set('view engine', 'jade');
 
 var credentials = {};
-var database = "geopix";
 
 if (process.env.hasOwnProperty("VCAP_SERVICES")) {
     // Running on Bluemix. Parse out the port and host that we've been assigned.
@@ -29,58 +39,57 @@ if (process.env.hasOwnProperty("VCAP_SERVICES")) {
 else {
     
     //for local node.js server instance
-    credentials.username = "cloudant username";
-    credentials.password = "cloudant password";
-    credentials.url = "cloudant url";
+    credentials.username = "74156ff4-aa0c-477f-8260-65fbd9e606a0-bluemix";
+    credentials.password = "b00898bdb9018c8814ae717261af47fbbea2fba31989cbc76be7ad3f21820044";
+    credentials.url = "https://74156ff4-aa0c-477f-8260-65fbd9e606a0-bluemix:b00898bdb9018c8814ae717261af47fbbea2fba31989cbc76be7ad3f21820044@74156ff4-aa0c-477f-8260-65fbd9e606a0-bluemix.cloudant.com";
+    credentials.port = 443;
 }
 
-var Cloudant = require('cloudant');
-var geopix;
+var AlchemyAPI = require('alchemy-api');
+var alchemy = new AlchemyAPI('7534dcdfb599a42690823504ae475f30c25c67d1');
 
-Cloudant({account:credentials.username, password:credentials.password}, function(err, cloudant) {
-    console.log('Connected to Cloudant');
-    geopix = cloudant.use(database);
-})
+//var database = 'hackathon';
+//var cloudant = require('cloudant')(credentials.url);
+//cloudant.db.create('hackathon', function(err,res) {
+//	if (err) { 
+//		console.log("could not crate db");
+//	}
+//});
+//var hackdb = cloudant.use("hackathon");
+
+var pics = include("/db/pics.js");
+var blogDB = new pics.Blog(credentials.url, credentials.port);
+var res = blogDB.findAll(function(err, result) {
+  console.log(result);
+});
 
 var prepareData = function(res, template) {
     
-    var results = [];
-    
-    //create the index if it doesn't already exist
-    var sort_index = {name:'sort', type:'json', index:{fields:['sort']}};
-    geopix.index(sort_index, function(er, response) {
-        if (er) {
-            throw er;
-        }
+	var results = [];
+	
+	blogDB.findAll(function(err, result) {
+		  console.log(result);
+		  
+          console.log('Found %d documents with type com.geopix.entry', result.length);
 
-        console.log('Index creation result: %s', response.result);
-    
-        //perform the search
-        var selector = {sort:{"$gt":0}};
-        geopix.find({selector:selector, sort:["sort"]}, function(er, result) {
-            if (er) {
-                throw er;
-            }
+          for (var x=0; x<result.length; x++) {
+              var obj = result[x];
 
-            console.log('Found %d documents with type com.geopix.entry', result.docs.length)
+              for (var key in obj._attachments) {
+                  obj.image = credentials.url + "/" + "hackathon" + "/" + obj._id +"/" + key;    
+                  console.log(obj.image);
+                  break;
+              }
 
-            for (var x=0; x<result.docs.length; x++) {
-                var obj = result.docs[x];
+              results.push( obj ); 
+          }
+          res.render(template, { results:results});
+	});
 
-                for (var key in obj._attachments) {
-                    obj.image = credentials.url + "/" + database + "/" + obj._id +"/" + key;    
-                    break;
-                }
-
-                results.push( obj ); 
-            }
-            res.render(template, { results:results});
-        });
-    });
 };
 
 app.get('/', function(req, res){
-    prepareData(res, 'map');
+    prepareData(res, 'list');
 });
 
 
@@ -88,36 +97,25 @@ app.get('/list', function(req, res){
     prepareData(res, 'list');
 });
 
+app.get('/analyze', function(req, res){
+    console.log(req.query.pic);
+    var data = req.query.pic;
+    alchemy.imageKeywords(data, {}, function(err, response) {
+    	
+    	  if (err) 
+    		  throw err;
 
-
-
-
-
+    	  // See http://www.alchemyapi.com/api/image-tagging/urls.html for format of returned object
+    	  var imageKeywords = response.imageKeywords;
+    	  console.log(imageKeywords);
+    	  
+    	  res.send(imageKeywords);
+    });
+});
 
 // create a public static content service
 app.use("/public", express.static(__dirname + '/public'));
 
-// create another static content service, and protect it with imf-backend-strategy
-app.use("/protected", passport.authenticate('imf-backend-strategy', {session: false }));
-app.use("/protected", express.static(__dirname + '/protected'));
-
-// create a backend service endpoint
-app.get('/publicServices/generateToken', function(req, res){
-		// use imf-oauth-user-sdk to get the authorization header, which can be used to access the protected resource/endpoint by imf-backend-strategy
-		imf.getAuthorizationHeader().then(function(token) {
-			res.send(200, token);
-		}, function(err) {
-			console.log(err);
-		});
-	}
-);
-
-//create another backend service endpoint, and protect it with imf-backend-strategy
-app.get('/protectedServices/test', passport.authenticate('imf-backend-strategy', {session: false }),
-		function(req, res){
-			res.send(200, "Successfully access to protected backend endpoint.");
-		}
-);
 
 var port = (process.env.VCAP_APP_PORT || 3000);
 app.listen(port);

@@ -1,12 +1,12 @@
 html
   head
-    title GeoPix - powered by Bluemix
+    title Hackathon Team E - powered by Bluemix
     link(href='//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css' rel='stylesheet')
     link(href='/public/css/index.css' rel='stylesheet')
     meta(name="viewport" content="width=device-width, initial-scale=1")
   body
     div(class='well')
-        h1 GeoPix - Powered by Bluemix
+        h1 Hackathon Team E - powered by Bluemix
         p
             a(href='/') Map
             &nbsp;|&nbsp;
@@ -20,3 +20,5 @@ html
                     div(class="panel-body")
                         img(src=val.image)
                         p= 'latitude: ' + val.latitude + ", longitude:" + val.longitude + ", altitude:" + val.altitude
+    script(src="//code.jquery.com/jquery-1.11.0.min.js")
+    script(src="/public/js/list.js")
